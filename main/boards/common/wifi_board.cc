@@ -105,6 +105,8 @@ void WifiBoard::StartNetwork() {
         notification += ssid;
         display->ShowNotification(notification.c_str(), 30000);
     });
+    //统一使用WifiStation连接，WifiPreConnect已经将凭据保存到SsidManager中 =====
+    ESP_LOGI(TAG, "启动WifiStation，将使用SsidManager中的凭据连接");
     wifi_station.Start();
 
     // Try to connect to WiFi, if failed, launch the WiFi configuration AP

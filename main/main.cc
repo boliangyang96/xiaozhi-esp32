@@ -7,6 +7,8 @@
 
 #include "application.h"
 #include "system_info.h"
+//调试wifi用户名密码直接写入
+#include "wifi_pre_connect.cc"
 
 #define TAG "main"
 
@@ -24,6 +26,7 @@ extern "C" void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
+    WifiPreConnect();
     // Launch the application
     auto& app = Application::GetInstance();
     app.Start();

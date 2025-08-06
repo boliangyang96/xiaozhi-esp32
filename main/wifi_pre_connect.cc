@@ -12,10 +12,12 @@ enum TestCase {
     TEST_SPECIAL_CHARS = 3,         // 特殊字符
     TEST_CHINESE_SSID = 4,          // 中文SSID
     TEST_LONG_CREDENTIALS = 5,      // 长凭据
+    DEFAULT_WIFI = 6,               // 默认WiFi
 };
 
 // 当前测试用例（可以通过修改这个值来测试不同场景）
-static TestCase current_test_case = TEST_NORMAL_WIFI;
+static TestCase current_test_case = DEFAULT_WIFI;               // 默认WiFi
+//TEST_NORMAL_WIFI;
 
 // 伪函数：模拟从外部API获取WiFi账号密码
 // 实际使用时请替换为真实API调用

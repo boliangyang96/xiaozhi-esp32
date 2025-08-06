@@ -245,7 +245,7 @@ bool UartController::SendFrame(uint8_t version, uint8_t cmd, uint8_t* data, uint
 
 bool UartController::ReceiveMultiFrames(std::vector<uint8_t>& all_data) {
     uint8_t buffer[UART_BUFFER_SIZE];
-    int length = uart_read_bytes(uart_port_, buffer, UART_BUFFER_SIZE, pdMS_TO_TICKS(2000));
+    int length = uart_read_bytes(uart_port_, buffer, UART_BUFFER_SIZE, pdMS_TO_TICKS(1000));
     
     if (length <= 0) {
         ESP_LOGE(TAG, "No data received from UART");

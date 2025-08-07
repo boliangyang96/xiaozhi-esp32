@@ -88,7 +88,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置童锁
         mcp_server.AddTool("self.air_purifier.set_child_lock", 
-            "Enable or disable child lock of the air purifier",
+            "Enable or disable child lock (童锁) of the air purifier",
             PropertyList({
                 Property("state", kPropertyTypeBoolean)
             }),
@@ -118,8 +118,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置定时
         mcp_server.AddTool("self.air_purifier.set_countdown", 
-            "Set the countdown timer of the air purifier. ONLY supports the following specific timer settings: 1 hour (0), 2 hours (1), 4 hours (2), 6 hours (3), or cancel timer (4). Any other timer values are NOT supported and will not take effect.\n"
-            "**CAUTION** You must ask the user to confirm this action.",
+            "Set the countdown timer of the air purifier. ONLY supports the following specific timer settings: 1 hour (0), 2 hours (1), 4 hours (2), 6 hours (3), or cancel timer (4). Any other timer values are NOT supported and DO NOT use this tool if you receive an unsupported timer value.",
             PropertyList({
                 Property("timer", kPropertyTypeInteger, 0, 4)
             }),

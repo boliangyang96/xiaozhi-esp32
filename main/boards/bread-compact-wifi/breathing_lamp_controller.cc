@@ -24,8 +24,10 @@ BreathingLampController::BreathingLampController(gpio_num_t gpio_num) : gpio_num
         "Get the current state of the lamp including power status, breathing mode, and timing parameters", 
         PropertyList(), 
         [this](const PropertyList& properties) -> ReturnValue {
+            // 如果呼吸灯模式开启或者LED直接开启，都认为灯光是开启状态
+            bool is_lamp_on = power_ || breathing_mode_;
             std::string state = "{\"power\": ";
-            state += power_ ? "true" : "false";
+            state += is_lamp_on ? "true" : "false";
             state += ", \"breathing_mode\": ";
             state += breathing_mode_ ? "true" : "false";
             state += ", \"on_duration_ms\": ";
@@ -75,11 +77,11 @@ BreathingLampController::BreathingLampController(gpio_num_t gpio_num) : gpio_num
 
     // 停止呼吸灯模式
     mcp_server.AddTool("self.lamp.stop_breathing_mode", 
-        "Stop the breathing mode and keep the lamp in its current state", 
+        "Stop the breathing mode and turn off the lamp", 
         PropertyList(), 
         [this](const PropertyList& properties) -> ReturnValue {
             StopBreathingMode();
-            return "{\"breathing_mode\": false}";
+            return "{\"breathing_mode\": false, \"power\": false}";
         });
 }
 
@@ -141,6 +143,10 @@ void BreathingLampController::StopBreathingMode() {
         // 删除任务
         vTaskDelete(breathing_task_handle_);
         breathing_task_handle_ = nullptr;
+        
+        // 关闭LED灯
+        SetLedState(false);
+        ESP_LOGI(TAG, "Lamp turned off after stopping breathing mode");
     }
 }
 

@@ -27,7 +27,7 @@ public:
     ~BreathingLampController();
     
     // 基础控制功能
-    bool GetState() const { return power_; }
+    bool GetState() const { return power_ || breathing_mode_; }
     void TurnOn();
     void TurnOff();
     

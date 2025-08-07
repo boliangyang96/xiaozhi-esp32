@@ -24,7 +24,15 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 获取设备状态
         mcp_server.AddTool("self.air_purifier.get_status", 
-            "Get the current status of the air purifier including switch state, PM2.5, mode, fan speed, filter life, etc.",
+            "Provides the real-time information of the air purifier, including the current status of switch, indoor PM2.5 level, mode, fan speed, filter life, child lock, UV sterilization light, indoor temperature, indoor humidity, countdown timer, and indoor air quality.\n"
+            "Return value number meanings:\n"
+            "- mode: sleep (0), auto (1), fast (2), manual (3)\n"
+            "- fan_speed: low (0), mid (1), high (2)\n"
+            "- countdown_set: 1 hour (0), 2 hours (1), 4 hours (2), 6 hours (3), cancel timer (4)\n"
+            "- indoor_air_quality: great (0), medium (1), severe (2)\n"
+            "Use this tool for: \n"
+            "1. Answering questions about current air purifier condition (e.g. what is the current PM2.5 level? Is the air purifier on?)\n"
+            "2. As the first step to control the air purifier (e.g. check current mode before changing settings, etc.)",
             PropertyList(),
             [this](const PropertyList& properties) -> ReturnValue {
                 if (!RefreshDeviceStatus()) {
@@ -80,7 +88,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置童锁
         mcp_server.AddTool("self.air_purifier.set_child_lock", 
-            "Enable or disable child lock",
+            "Enable or disable child lock of the air purifier",
             PropertyList({
                 Property("state", kPropertyTypeBoolean)
             }),
@@ -95,7 +103,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置杀菌灯
         mcp_server.AddTool("self.air_purifier.set_uv_light", 
-            "Turn on or off the UV sterilization light",
+            "Turn on or off the UV sterilization light of the air purifier",
             PropertyList({
                 Property("state", kPropertyTypeBoolean)
             }),
@@ -110,7 +118,8 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置定时
         mcp_server.AddTool("self.air_purifier.set_countdown", 
-            "Set the countdown timer (1h: 0, 2h: 1, 4h: 2, 6h: 3, cancel: 4)",
+            "Set the countdown timer of the air purifier. ONLY supports the following specific timer settings: 1 hour (0), 2 hours (1), 4 hours (2), 6 hours (3), or cancel timer (4). Any other timer values are NOT supported and will not take effect.\n"
+            "**CAUTION** You must ask the user to confirm this action.",
             PropertyList({
                 Property("timer", kPropertyTypeInteger, 0, 4)
             }),
@@ -123,60 +132,6 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
                 }
             });
         
-        // 查询PM2.5
-        mcp_server.AddTool("self.air_purifier.get_pm25", 
-            "Get the current PM2.5 value",
-            PropertyList(),
-            [this](const PropertyList& properties) -> ReturnValue {
-                if (!RefreshDeviceStatus()) {
-                    return "{\"success\": false, \"message\": \"Failed to get PM2.5 data\"}";
-                }
-                return "{\"success\": true, \"pm25\": " + std::to_string(device_status_.pm25) + "}";
-            });
-        
-        // 查询室内温度
-        mcp_server.AddTool("self.air_purifier.get_temperature", 
-            "Get the current indoor temperature",
-            PropertyList(),
-            [this](const PropertyList& properties) -> ReturnValue {
-                if (!RefreshDeviceStatus()) {
-                    return "{\"success\": false, \"message\": \"Failed to get temperature data\"}";
-                }
-                return "{\"success\": true, \"temperature\": " + std::to_string(device_status_.indoor_temp) + "}";
-            });
-        
-        // 查询室内湿度
-        mcp_server.AddTool("self.air_purifier.get_humidity", 
-            "Get the current indoor humidity",
-            PropertyList(),
-            [this](const PropertyList& properties) -> ReturnValue {
-                if (!RefreshDeviceStatus()) {
-                    return "{\"success\": false, \"message\": \"Failed to get humidity data\"}";
-                }
-                return "{\"success\": true, \"humidity\": " + std::to_string(device_status_.indoor_humidity) + "}";
-            });
-        
-        // 查询空气质量
-        mcp_server.AddTool("self.air_purifier.get_air_quality", 
-            "Get the current air quality (great: 0, medium: 1, severe: 2)",
-            PropertyList(),
-            [this](const PropertyList& properties) -> ReturnValue {
-                if (!RefreshDeviceStatus()) {
-                    return "{\"success\": false, \"message\": \"Failed to get air quality data\"}";
-                }
-                return "{\"success\": true, \"air_quality\": " + std::to_string(device_status_.air_quality) + "}";
-            });
-        
-        // 查询滤网剩余
-        mcp_server.AddTool("self.air_purifier.get_filter_life", 
-            "Get the remaining filter life percentage",
-            PropertyList(),
-            [this](const PropertyList& properties) -> ReturnValue {
-                if (!RefreshDeviceStatus()) {
-                    return "{\"success\": false, \"message\": \"Failed to get filter life data\"}";
-                }
-                return "{\"success\": true, \"filter_life\": " + std::to_string(device_status_.filter_life) + "}";
-            });
     } else {
         ESP_LOGE(TAG, "Failed to initialize UART controller");
     }
@@ -534,7 +489,7 @@ std::string UartController::GetStatusJson() const {
     cJSON* json = cJSON_CreateObject();
     
     cJSON_AddBoolToObject(json, "switch", device_status_.switch_state);
-    cJSON_AddNumberToObject(json, "pm25", device_status_.pm25);
+    cJSON_AddNumberToObject(json, "indoor_pm25", device_status_.pm25);
     cJSON_AddNumberToObject(json, "mode", device_status_.mode);
     cJSON_AddNumberToObject(json, "fan_speed", device_status_.fan_speed);
     cJSON_AddNumberToObject(json, "filter_life", device_status_.filter_life);
@@ -543,7 +498,7 @@ std::string UartController::GetStatusJson() const {
     cJSON_AddNumberToObject(json, "indoor_temp", device_status_.indoor_temp);
     cJSON_AddNumberToObject(json, "indoor_humidity", device_status_.indoor_humidity);
     cJSON_AddNumberToObject(json, "countdown_set", device_status_.countdown_set);
-    cJSON_AddNumberToObject(json, "air_quality", device_status_.air_quality);
+    cJSON_AddNumberToObject(json, "indoor_air_quality", device_status_.air_quality);
     cJSON_AddBoolToObject(json, "status_initialized", status_initialized_);
     
     char* json_str = cJSON_PrintUnformatted(json);

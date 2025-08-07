@@ -44,12 +44,7 @@
 - `self.air_purifier.set_countdown` - 设置定时
 
 #### 查询工具
-- `self.air_purifier.get_status` - 获取完整设备状态
-- `self.air_purifier.get_pm25` - 查询PM2.5
-- `self.air_purifier.get_temperature` - 查询温度
-- `self.air_purifier.get_humidity` - 查询湿度
-- `self.air_purifier.get_air_quality` - 查询空气质量
-- `self.air_purifier.get_filter_life` - 查询滤网寿命
+- `self.air_purifier.get_status` - 获取完整设备状态，包括净化器开关状态、室内PM2.5数值、净化器模式设置状态、净化器风速状态、净化器滤网寿命、净化器童锁状态、净化器杀菌灯状态、室内温度、室内湿度、净化器定时状态、室内空气质量等所有信息
 
 ### 4. 硬件配置
 - TXD端口: GPIO 17

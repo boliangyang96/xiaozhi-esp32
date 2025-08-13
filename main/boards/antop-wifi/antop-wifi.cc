@@ -6,7 +6,8 @@
 #include "button.h"
 #include "config.h"
 #include "mcp_server.h"
-#include "lamp_controller.h"
+#include "breathing_lamp_controller.h"
+#include "uart_controller.h"
 #include "led/single_led.h"
 #include "assets/lang_config.h"
 
@@ -20,12 +21,12 @@
 #include <esp_lcd_panel_sh1106.h>
 #endif
 
-#define TAG "CompactWifiBoard"
+#define TAG "AntopWifiBoard"
 
 LV_FONT_DECLARE(font_puhui_14_1);
 LV_FONT_DECLARE(font_awesome_14_1);
 
-class CompactWifiBoard : public WifiBoard {
+class AntopWifiBoard : public WifiBoard {
 private:
     i2c_master_bus_handle_t display_i2c_bus_;
     esp_lcd_panel_io_handle_t panel_io_ = nullptr;
@@ -153,11 +154,12 @@ private:
 
     // 物联网初始化，逐步迁移到 MCP 协议
     void InitializeTools() {
-        static LampController lamp(LAMP_GPIO);
+        static BreathingLampController breathing_lamp(LAMP_GPIO);
+        static UartController uart_controller(UART_TXD_PIN, UART_RXD_PIN);
     }
 
 public:
-    CompactWifiBoard() :
+    AntopWifiBoard() :
         boot_button_(BOOT_BUTTON_GPIO),
         touch_button_(TOUCH_BUTTON_GPIO),
         volume_up_button_(VOLUME_UP_BUTTON_GPIO),
@@ -189,4 +191,4 @@ public:
     }
 };
 
-DECLARE_BOARD(CompactWifiBoard);
+DECLARE_BOARD(AntopWifiBoard);

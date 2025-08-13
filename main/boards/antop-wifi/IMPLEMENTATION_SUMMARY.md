@@ -14,7 +14,7 @@
 - `README_UART.md` - 使用说明文档
 
 ### 修改文件
-- `compact_wifi_board.cc` - 主板文件，集成了UART控制器
+- `antop-wifi.cc` - 主板文件，集成了UART控制器
 
 ## 实现功能
 

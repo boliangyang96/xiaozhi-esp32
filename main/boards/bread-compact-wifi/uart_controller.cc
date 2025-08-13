@@ -224,69 +224,100 @@ bool UartController::ParseMultiFrames(const std::vector<uint8_t>& all_data) {
     ESP_LOGI(TAG, "Starting to parse multi-frame data, total bytes: %u", (unsigned int)all_data.size());
     
     size_t offset = 0;
-    int frame_count = 0;
+    int frame_count = 0;  // 潜在的frame计数，用于区分有效frame和潜在frame
+    int valid_frame_count = 0;  // 有效的frame计数，用于判断是否解析成功
     
-    while (offset + 7 <= all_data.size()) {
-        // 查找帧头 0x55 0xAA
-        if (all_data[offset] != ((FRAME_HEADER >> 8) & 0xFF) || 
-            all_data[offset + 1] != (FRAME_HEADER & 0xFF)) {
-            ESP_LOGE(TAG, "Invalid frame header at offset %u: 0x%02X 0x%02X", 
-                     (unsigned int)offset, all_data[offset], all_data[offset + 1]);
-            return false;
+    while (offset < all_data.size()) {
+        // 寻找帧头 0x55 0xAA
+        bool frame_header_found = false;
+        while (offset + 1 < all_data.size()) {
+            if (all_data[offset] == ((FRAME_HEADER >> 8) & 0xFF) && 
+                all_data[offset + 1] == (FRAME_HEADER & 0xFF)) {
+                frame_header_found = true;
+                break;
+            }
+            offset++;
         }
         
-        // 验证版本号 (0x03)
+        if (!frame_header_found) {
+            ESP_LOGW(TAG, "No more valid frame headers found, stopping parse");
+            break;
+        }
+        
+        // 找到潜在的frame头，增加计数
+        frame_count++;
+        
+        // 检查是否有足够的数据读取完整的帧头部
+        if (offset + 7 > all_data.size()) {
+            ESP_LOGW(TAG, "Potential frame %d: Insufficient data for complete frame header at offset %u", 
+                     frame_count, (unsigned int)offset);
+            break;
+        }
+        
+        // 验证版本号 (0x03) - 在帧头正确的基础上检查版本号
         if (all_data[offset + 2] != VERSION_MCU_REPORT) {
-            ESP_LOGE(TAG, "Invalid version at offset %u: 0x%02X", (unsigned int)offset, all_data[offset + 2]);
-            return false;
+            ESP_LOGW(TAG, "Potential frame %d: Invalid version at offset %u: 0x%02X, skipping to next potential frame", 
+                     frame_count, (unsigned int)offset, all_data[offset + 2]);
+            offset += 2; // 版本号错误时跳过帧头
+            continue;
         }
         
-        // 验证命令字 (0x07)
+        // 验证命令字 (0x07) - 在版本号正确的基础上检查命令字
         if (all_data[offset + 3] != CMD_REPORT) {
-            ESP_LOGE(TAG, "Invalid command at offset %u: 0x%02X", (unsigned int)offset, all_data[offset + 3]);
-            return false;
+            ESP_LOGW(TAG, "Potential frame %d: Invalid command at offset %u: 0x%02X, skipping to next potential frame", 
+                     frame_count, (unsigned int)offset, all_data[offset + 3]);
+            offset += 3; // 命令字错误时跳过帧头+版本号
+            continue;
         }
         
         // 获取数据长度
         uint16_t frame_data_len = (all_data[offset + 4] << 8) | all_data[offset + 5];
         uint16_t total_frame_len = 7 + frame_data_len;
         
-        ESP_LOGD(TAG, "Frame %d: offset=%u, data_len=%d, total_len=%d", 
+        ESP_LOGD(TAG, "Potential frame %d: offset=%u, data_len=%d, total_len=%d", 
                  frame_count, (unsigned int)offset, frame_data_len, total_frame_len);
         
         // 检查是否有足够的数据
         if (offset + total_frame_len > all_data.size()) {
-            ESP_LOGE(TAG, "Incomplete frame at offset %u, need %d bytes, have %u bytes", 
-                     (unsigned int)offset, total_frame_len, (unsigned int)(all_data.size() - offset));
-            return false;
+            ESP_LOGW(TAG, "Potential frame %d: Incomplete frame at offset %u, need %d bytes, have %u bytes, skipping", 
+                     frame_count, (unsigned int)offset, total_frame_len, (unsigned int)(all_data.size() - offset));
+            offset += 3;
+            continue;
         }
         
         // 验证校验和
         uint8_t calculated_checksum = CalculateChecksum(&all_data[offset], total_frame_len - 1);
         if (calculated_checksum != all_data[offset + total_frame_len - 1]) {
-            ESP_LOGE(TAG, "Checksum mismatch at frame %d, calculated: 0x%02X, received: 0x%02X", 
+            ESP_LOGW(TAG, "Potential frame %d: Checksum mismatch, calculated: 0x%02X, received: 0x%02X, skipping", 
                      frame_count, calculated_checksum, all_data[offset + total_frame_len - 1]);
-            return false;
+            offset += 3;
+            continue;
         }
         
         // 解析这个数据帧中的DP数据
         if (frame_data_len > 0) {
-            ESP_LOGD(TAG, "Parsing DP data in frame %d, length: %d", frame_count, frame_data_len);
+            ESP_LOGD(TAG, "Potential frame %d: Parsing DP data, length: %d", frame_count, frame_data_len);
             if (!ParseMcuReport(&all_data[offset + 6], frame_data_len)) {
-                ESP_LOGE(TAG, "Failed to parse MCU report data in frame %d", frame_count);
-                return false;
+                ESP_LOGW(TAG, "Potential frame %d: Failed to parse MCU report data, skipping", frame_count);
+                offset += 3;
+                continue;
             }
         }
         
-        ESP_LOGD(TAG, "Successfully parsed frame %d, length: %d", frame_count, total_frame_len);
+        // 到这里说明frame解析成功，增加有效frame计数
+        valid_frame_count++;
+        ESP_LOGD(TAG, "Valid frame %d (potential frame %d): Successfully parsed, length: %d", 
+                 valid_frame_count, frame_count, total_frame_len);
         
         // 移动到下一个帧
         offset += total_frame_len;
-        frame_count++;
     }
     
-    ESP_LOGI(TAG, "Successfully parsed %d frames", frame_count);
-    return true;
+    ESP_LOGI(TAG, "Parse completed: found %d potential frames, successfully parsed %d valid frames", 
+             frame_count, valid_frame_count);
+    
+    // 只要解析到至少一个有效帧，就认为成功
+    return valid_frame_count > 0;
 }
 
 uint8_t UartController::CalculateChecksum(const uint8_t* data, uint16_t length) {

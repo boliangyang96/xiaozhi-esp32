@@ -154,13 +154,14 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置灯光亮度
         mcp_server.AddTool("self.light.set_brightness", 
-            "Set the brightness of the LED light (1-100)",
+            "Set the brightness of the LED light (1-100). Always use this tool to set the brightness of the LED light.",
             PropertyList({
                 Property("brightness", kPropertyTypeInteger, 1, 100)
             }),
             [this](const PropertyList& properties) -> ReturnValue {
                 int brightness = properties["brightness"].value<int>();
                 if (SetLightBrightness(brightness)) {
+                    ESP_LOGI(TAG, "Setting LED brightness to: %d", brightness);
                     return "{\"success\": true, \"brightness\": " + std::to_string(brightness) + "}";
                 } else {
                     return "{\"success\": false, \"message\": \"Failed to set light brightness\"}";
@@ -206,6 +207,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
             [this](const PropertyList& properties) -> ReturnValue {
                 int scene = properties["scene"].value<int>();
                 if (SetLedScene(scene)) {
+                    ESP_LOGI(TAG, "Setting LED scene to: %d", scene);
                     return "{\"success\": true, \"led_scene\": " + std::to_string(scene) + "}";
                 } else {
                     return "{\"success\": false, \"message\": \"Failed to set LED scene\"}";
@@ -794,7 +796,7 @@ std::string UartController::FormatHsvString(int hue, int saturation, int value) 
     char hsv_str[13];
     snprintf(hsv_str, sizeof(hsv_str), "%04X%04X%04X", hue_raw, sat_raw, val_raw);
     
-    ESP_LOGD(TAG, "Formatted HSV: H:%d°, S:%d%%, V:%d%% -> %s", hue, saturation, value, hsv_str);
+    ESP_LOGI(TAG, "Formatted HSV: H:%d°, S:%d%%, V:%d%% -> %s", hue, saturation, value, hsv_str);
     return std::string(hsv_str);
 }
 

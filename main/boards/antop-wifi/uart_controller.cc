@@ -23,16 +23,22 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         auto& mcp_server = McpServer::GetInstance();
         
         // 获取设备状态
-        mcp_server.AddTool("self.air_purifier.get_status", 
-            "Provides the real-time information of the air purifier, including the current status of switch, indoor PM2.5 level, mode, fan speed, filter life, child lock, UV sterilization light, indoor temperature, indoor humidity, countdown timer, and indoor air quality.\n"
+        mcp_server.AddTool("self.air_purifier_or_light.get_status", 
+            "Provides the real-time information of the air purifier and lighting system, including all status of the air purifier (purifier switch, indoor PM2.5 level, purifier mode, fan speed, filter life, anion, child lock, UV sterilization light, indoor temperature, indoor humidity, countdown timer, indoor air quality), and all lighting status (brightness, LED switch, LED breath switch, LED scene, LED color HSV values, laser light mode, projection light mode). The LED color is represented in HSV format (led_hue, led_saturation, led_value).\n"
             "Return value number meanings:\n"
-            "- mode: sleep (0), auto (1), fast (2), manual (3)\n"
-            "- fan_speed: low (0), mid (1), high (2)\n"
+            "- purifier_mode: sleep (0), auto (1), fast (2), manual (3)\n"
+            "- purifier_fan_speed: low (0), mid (1), high (2)\n"
             "- countdown_set: 1 hour (0), 2 hours (1), 4 hours (2), 6 hours (3), cancel timer (4)\n"
             "- indoor_air_quality: great (0), medium (1), severe (2)\n"
+            "- light_led_scene: moon_shadow (0), aurora (1), dusk (2), deep_blue (3), forest (4), bonfire (5), early_dawn (6), starry_sky (7), sunset (8), temple_candle (9), ink_wash (10), cyberpunk (11), romance (12), healing (13), focus (14), rainbow (15), custom (16)\n"
+            "- led_hue: 0-360 degrees\n"
+            "- led_saturation: 0-100%\n"
+            "- led_value: 0-100%\n"
+            "- light_laser_mode: on (0), breath (1), off (2)\n"
+            "- light_projection_mode: on (0), breath (1), off (2)\n"
             "Use this tool for: \n"
-            "1. Answering questions about current air purifier condition (e.g. what is the current PM2.5 level? Is the air purifier on?)\n"
-            "2. As the first step to control the air purifier (e.g. check current mode before changing settings, etc.)",
+            "1. Answering questions about current air purifier or lighting condition (e.g. what is the current PM2.5 level? Is the air purifier on? What is the current LED scene?)\n"
+            "2. As the first step to control the air purifier or lighting (e.g. check current settings before changing)",
             PropertyList(),
             [this](const PropertyList& properties) -> ReturnValue {
                 if (!RefreshDeviceStatus()) {
@@ -86,6 +92,21 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
                 }
             });
         
+        // 设置负离子
+        mcp_server.AddTool("self.air_purifier.set_anion", 
+            "Turn on or off the anion (negative ion) function of the air purifier",
+            PropertyList({
+                Property("state", kPropertyTypeBoolean)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                bool state = properties["state"].value<bool>();
+                if (SetAnion(state)) {
+                    return "{\"success\": true, \"anion\": " + std::string(state ? "true" : "false") + "}";
+                } else {
+                    return "{\"success\": false, \"message\": \"Failed to set anion\"}";
+                }
+            });
+        
         // 设置童锁
         mcp_server.AddTool("self.air_purifier.set_child_lock", 
             "Enable or disable child lock (童锁) of the air purifier",
@@ -128,6 +149,116 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
                     return "{\"success\": true, \"countdown\": " + std::to_string(timer) + "}";
                 } else {
                     return "{\"success\": false, \"message\": \"Failed to set countdown\"}";
+                }
+            });
+        
+        // 设置灯光亮度
+        mcp_server.AddTool("self.light.set_brightness", 
+            "Set the brightness of the LED light (1-100)",
+            PropertyList({
+                Property("brightness", kPropertyTypeInteger, 1, 100)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                int brightness = properties["brightness"].value<int>();
+                if (SetLightBrightness(brightness)) {
+                    return "{\"success\": true, \"brightness\": " + std::to_string(brightness) + "}";
+                } else {
+                    return "{\"success\": false, \"message\": \"Failed to set light brightness\"}";
+                }
+            });
+        
+        // 设置LED灯开关
+        mcp_server.AddTool("self.light.set_led_switch", 
+            "Turn on or off the LED light",
+            PropertyList({
+                Property("state", kPropertyTypeBoolean)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                bool state = properties["state"].value<bool>();
+                if (SetLedSwitch(state)) {
+                    return "{\"success\": true, \"led_switch\": " + std::string(state ? "true" : "false") + "}";
+                } else {
+                    return "{\"success\": false, \"message\": \"Failed to set LED switch\"}";
+                }
+            });
+        
+        // 设置LED呼吸开关
+        mcp_server.AddTool("self.light.set_led_breath_switch", 
+            "Turn on or off the breathing effect of the LED light",
+            PropertyList({
+                Property("state", kPropertyTypeBoolean)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                bool state = properties["state"].value<bool>();
+                if (SetLedBreathSwitch(state)) {
+                    return "{\"success\": true, \"led_breath_switch\": " + std::string(state ? "true" : "false") + "}";
+                } else {
+                    return "{\"success\": false, \"message\": \"Failed to set LED breath switch\"}";
+                }
+            });
+        
+        // 设置LED灯光场景，当前该工具将 custom 排除在外，因为 custom 场景需要使用 'self.light.set_led_colour' 工具来单独设置颜色
+        mcp_server.AddTool("self.light.set_led_scene", 
+            "Set the lighting scene of the LED light. ONLY supports the following specific scenes: moon_shadow (0), aurora (1), dusk (2), deep_blue (3), forest (4), bonfire (5), early_dawn (6), starry_sky (7), sunset (8), temple_candle (9), ink_wash (10), cyberpunk (11), romance (12), healing (13), focus (14), rainbow (15). DO NOT use this tool if you receive an unsupported scene value, USE 'self.light.set_led_colour' instead.",
+            PropertyList({
+                Property("scene", kPropertyTypeInteger, 0, 15)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                int scene = properties["scene"].value<int>();
+                if (SetLedScene(scene)) {
+                    return "{\"success\": true, \"led_scene\": " + std::to_string(scene) + "}";
+                } else {
+                    return "{\"success\": false, \"message\": \"Failed to set LED scene\"}";
+                }
+            });
+        
+        // 设置LED颜色
+        mcp_server.AddTool("self.light.set_led_colour", 
+            "Set the color of the LED light using HSV values. Hue: 0-360 degrees, Saturation: 0-100%, Value: 0-100%",
+            PropertyList({
+                Property("hue", kPropertyTypeInteger, 0, 360),
+                Property("saturation", kPropertyTypeInteger, 0, 100),
+                Property("value", kPropertyTypeInteger, 0, 100)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                SetLedScene(16); // 发送指令，设置为 custom 灯光场景
+                int hue = properties["hue"].value<int>();
+                int saturation = properties["saturation"].value<int>();
+                int value = properties["value"].value<int>();
+                if (SetLedColour(hue, saturation, value)) {
+                    return "{\"success\": true, \"hue\": " + std::to_string(hue) + ", \"saturation\": " + std::to_string(saturation) + ", \"value\": " + std::to_string(value) + "}";
+                } else {
+                    return "{\"success\": false, \"message\": \"Failed to set LED colour\"}";
+                }
+            });
+        
+        // 设置激光灯模式
+        mcp_server.AddTool("self.light.set_laser_mode", 
+            "Set the laser light mode (on: 0, breath: 1, off: 2)",
+            PropertyList({
+                Property("mode", kPropertyTypeInteger, 0, 2)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                int mode = properties["mode"].value<int>();
+                if (SetLaserMode(mode)) {
+                    return "{\"success\": true, \"laser_mode\": " + std::to_string(mode) + "}";
+                } else {
+                    return "{\"success\": false, \"message\": \"Failed to set laser mode\"}";
+                }
+            });
+        
+        // 设置投影灯模式
+        mcp_server.AddTool("self.light.set_projection_mode", 
+            "Set the projection light mode (on: 0, breath: 1, off: 2)",
+            PropertyList({
+                Property("mode", kPropertyTypeInteger, 0, 2)
+            }),
+            [this](const PropertyList& properties) -> ReturnValue {
+                int mode = properties["mode"].value<int>();
+                if (SetProjectionMode(mode)) {
+                    return "{\"success\": true, \"projection_mode\": " + std::to_string(mode) + "}";
+                } else {
+                    return "{\"success\": false, \"message\": \"Failed to set projection mode\"}";
                 }
             });
         
@@ -346,63 +477,70 @@ bool UartController::ParseMcuReport(const uint8_t* data, uint16_t length) {
     uint8_t* dp_value = (uint8_t*)&data[4];
     
     switch (dp_id) {
-        case DPID_SWITCH:
+        case DPID_PURIFIER_SWITCH:
             if (dp_type == DP_TYPE_BOOL && dp_len == 1) {
-                device_status_.switch_state = (dp_value[0] != 0);
-                ESP_LOGI(TAG, "Switch state: %s", device_status_.switch_state ? "ON" : "OFF");
+                device_status_.purifier_switch = (dp_value[0] != 0);
+                ESP_LOGI(TAG, "Purifier switch: %s", device_status_.purifier_switch ? "ON" : "OFF");
             }
             break;
             
-        case DPID_PM25:
+        case DPID_INDOOR_PM25:
             if (dp_type == DP_TYPE_VALUE && dp_len == 4) {
-                device_status_.pm25 = (dp_value[0] << 24) | (dp_value[1] << 16) | (dp_value[2] << 8) | dp_value[3];
-                ESP_LOGI(TAG, "PM2.5: %d", device_status_.pm25);
+                device_status_.indoor_pm25 = (dp_value[0] << 24) | (dp_value[1] << 16) | (dp_value[2] << 8) | dp_value[3];
+                ESP_LOGI(TAG, "Indoor PM2.5: %d", device_status_.indoor_pm25);
             }
             break;
             
-        case DPID_MODE:
+        case DPID_PURIFIER_MODE:
             if (dp_type == DP_TYPE_ENUM && dp_len == 1) {
-                device_status_.mode = dp_value[0];
-                ESP_LOGI(TAG, "Mode: %d", device_status_.mode);
+                device_status_.purifier_mode = dp_value[0];
+                ESP_LOGI(TAG, "Purifier mode: %d", device_status_.purifier_mode);
             }
             break;
             
-        case DPID_FAN_SPEED:
+        case DPID_PURIFIER_FAN_SPEED:
             if (dp_type == DP_TYPE_ENUM && dp_len == 1) {
-                device_status_.fan_speed = dp_value[0];
-                ESP_LOGI(TAG, "Fan speed: %d", device_status_.fan_speed);
+                device_status_.purifier_fan_speed = dp_value[0];
+                ESP_LOGI(TAG, "Purifier fan speed: %d", device_status_.purifier_fan_speed);
             }
             break;
             
-        case DPID_FILTER_LIFE:
+        case DPID_PURIFIER_FILTER_LIFE:
             if (dp_type == DP_TYPE_VALUE && dp_len == 4) {
-                device_status_.filter_life = (dp_value[0] << 24) | (dp_value[1] << 16) | (dp_value[2] << 8) | dp_value[3];
-                ESP_LOGI(TAG, "Filter life: %d%%", device_status_.filter_life);
+                device_status_.purifier_filter_life = (dp_value[0] << 24) | (dp_value[1] << 16) | (dp_value[2] << 8) | dp_value[3];
+                ESP_LOGI(TAG, "Purifier filter life: %d%%", device_status_.purifier_filter_life);
             }
             break;
             
-        case DPID_CHILD_LOCK:
+        case DPID_PURIFIER_ANION:
             if (dp_type == DP_TYPE_BOOL && dp_len == 1) {
-                device_status_.child_lock = (dp_value[0] != 0);
-                ESP_LOGI(TAG, "Child lock: %s", device_status_.child_lock ? "ON" : "OFF");
+                device_status_.purifier_anion = (dp_value[0] != 0);
+                ESP_LOGI(TAG, "Purifier anion: %s", device_status_.purifier_anion ? "ON" : "OFF");
             }
             break;
             
-        case DPID_UV:
+        case DPID_PURIFIER_CHILD_LOCK:
             if (dp_type == DP_TYPE_BOOL && dp_len == 1) {
-                device_status_.uv_light = (dp_value[0] != 0);
-                ESP_LOGI(TAG, "UV light: %s", device_status_.uv_light ? "ON" : "OFF");
+                device_status_.purifier_child_lock = (dp_value[0] != 0);
+                ESP_LOGI(TAG, "Purifier child lock: %s", device_status_.purifier_child_lock ? "ON" : "OFF");
             }
             break;
             
-        case DPID_TEMP_INDOOR:
+        case DPID_PURIFIER_UV:
+            if (dp_type == DP_TYPE_BOOL && dp_len == 1) {
+                device_status_.purifier_uv = (dp_value[0] != 0);
+                ESP_LOGI(TAG, "Purifier UV: %s", device_status_.purifier_uv ? "ON" : "OFF");
+            }
+            break;
+            
+        case DPID_INDOOR_TEMP:
             if (dp_type == DP_TYPE_VALUE && dp_len == 4) {
                 device_status_.indoor_temp = (dp_value[0] << 24) | (dp_value[1] << 16) | (dp_value[2] << 8) | dp_value[3];
                 ESP_LOGI(TAG, "Indoor temperature: %d°C", device_status_.indoor_temp);
             }
             break;
             
-        case DPID_HUMIDITY:
+        case DPID_INDOOR_HUMIDITY:
             if (dp_type == DP_TYPE_VALUE && dp_len == 4) {
                 device_status_.indoor_humidity = (dp_value[0] << 24) | (dp_value[1] << 16) | (dp_value[2] << 8) | dp_value[3];
                 ESP_LOGI(TAG, "Indoor humidity: %d%%", device_status_.indoor_humidity);
@@ -416,10 +554,68 @@ bool UartController::ParseMcuReport(const uint8_t* data, uint16_t length) {
             }
             break;
             
-        case DPID_AIR_QUALITY:
+        case DPID_INDOOR_AIR_QUALITY:
             if (dp_type == DP_TYPE_ENUM && dp_len == 1) {
-                device_status_.air_quality = dp_value[0];
-                ESP_LOGI(TAG, "Air quality: %d", device_status_.air_quality);
+                device_status_.indoor_air_quality = dp_value[0];
+                ESP_LOGI(TAG, "Indoor air quality: %d", device_status_.indoor_air_quality);
+            }
+            break;
+            
+        case DPID_LIGHT_BRIGHTNESS:
+            if (dp_type == DP_TYPE_VALUE && dp_len == 4) {
+                device_status_.light_brightness = (dp_value[0] << 24) | (dp_value[1] << 16) | (dp_value[2] << 8) | dp_value[3];
+                ESP_LOGI(TAG, "Light brightness: %d", device_status_.light_brightness);
+            }
+            break;
+            
+        case DPID_LIGHT_LED_SWITCH:
+            if (dp_type == DP_TYPE_BOOL && dp_len == 1) {
+                device_status_.light_led_switch = (dp_value[0] != 0);
+                ESP_LOGI(TAG, "Light LED switch: %s", device_status_.light_led_switch ? "ON" : "OFF");
+            }
+            break;
+            
+        case DPID_LIGHT_LED_BREATH_SWITCH:
+            if (dp_type == DP_TYPE_BOOL && dp_len == 1) {
+                device_status_.light_led_breath_switch = (dp_value[0] != 0);
+                ESP_LOGI(TAG, "Light LED breath switch: %s", device_status_.light_led_breath_switch ? "ON" : "OFF");
+            }
+            break;
+            
+        case DPID_LIGHT_LED_SCENE:
+            if (dp_type == DP_TYPE_ENUM && dp_len == 1) {
+                device_status_.light_led_scene = dp_value[0];
+                ESP_LOGI(TAG, "Light LED scene: %d", device_status_.light_led_scene);
+            }
+            break;
+            
+        case DPID_LIGHT_LED_COLOUR:
+            if (dp_type == DP_TYPE_STRING && dp_len > 0) {
+                // 解析HSV字符串
+                std::string hsv_str((char*)dp_value, dp_len);
+                int hue, saturation, value;
+                if (ParseHsvString(hsv_str, hue, saturation, value)) {
+                    device_status_.led_hue = hue;
+                    device_status_.led_saturation = saturation;
+                    device_status_.led_value = value;
+                    ESP_LOGI(TAG, "Light LED colour - Hue: %d°, Saturation: %d%%, Value: %d%%", hue, saturation, value);
+                } else {
+                    ESP_LOGW(TAG, "Failed to parse HSV string: %s", hsv_str.c_str());
+                }
+            }
+            break;
+            
+        case DPID_LIGHT_LASER_MODE:
+            if (dp_type == DP_TYPE_ENUM && dp_len == 1) {
+                device_status_.light_laser_mode = dp_value[0];
+                ESP_LOGI(TAG, "Light laser mode: %d", device_status_.light_laser_mode);
+            }
+            break;
+            
+        case DPID_LIGHT_PROJECTION_MODE:
+            if (dp_type == DP_TYPE_ENUM && dp_len == 1) {
+                device_status_.light_projection_mode = dp_value[0];
+                ESP_LOGI(TAG, "Light projection mode: %d", device_status_.light_projection_mode);
             }
             break;
             
@@ -439,7 +635,7 @@ bool UartController::QueryMcuStatus() {
     }
 
     // 等待MCU处理和响应时间
-    // 根据协议，MCU需要时间处理查询命令并上报所有DP点数据
+    // MCU需要时间处理查询命令并上报所有DP点数据
     ESP_LOGI(TAG, "Waiting for MCU response (delay: 200ms)...");
     vTaskDelay(pdMS_TO_TICKS(200));  // 等待200ms让MCU处理并响应
     
@@ -483,27 +679,32 @@ bool UartController::SendControlCommand(uint8_t dp_id, uint8_t dp_type, const ui
 
 bool UartController::SetSwitch(bool state) {
     uint8_t value = state ? 0x01 : 0x00;
-    return SendControlCommand(DPID_SWITCH, DP_TYPE_BOOL, &value, 1);
+    return SendControlCommand(DPID_PURIFIER_SWITCH, DP_TYPE_BOOL, &value, 1);
 }
 
 bool UartController::SetMode(int mode) {
     uint8_t value = mode & 0xFF;
-    return SendControlCommand(DPID_MODE, DP_TYPE_ENUM, &value, 1);
+    return SendControlCommand(DPID_PURIFIER_MODE, DP_TYPE_ENUM, &value, 1);
 }
 
 bool UartController::SetFanSpeed(int speed) {
     uint8_t value = speed & 0xFF;
-    return SendControlCommand(DPID_FAN_SPEED, DP_TYPE_ENUM, &value, 1);
+    return SendControlCommand(DPID_PURIFIER_FAN_SPEED, DP_TYPE_ENUM, &value, 1);
+}
+
+bool UartController::SetAnion(bool state) {
+    uint8_t value = state ? 0x01 : 0x00;
+    return SendControlCommand(DPID_PURIFIER_ANION, DP_TYPE_BOOL, &value, 1);
 }
 
 bool UartController::SetChildLock(bool state) {
     uint8_t value = state ? 0x01 : 0x00;
-    return SendControlCommand(DPID_CHILD_LOCK, DP_TYPE_BOOL, &value, 1);
+    return SendControlCommand(DPID_PURIFIER_CHILD_LOCK, DP_TYPE_BOOL, &value, 1);
 }
 
 bool UartController::SetUvLight(bool state) {
     uint8_t value = state ? 0x01 : 0x00;
-    return SendControlCommand(DPID_UV, DP_TYPE_BOOL, &value, 1);
+    return SendControlCommand(DPID_PURIFIER_UV, DP_TYPE_BOOL, &value, 1);
 }
 
 bool UartController::SetCountdown(int timer) {
@@ -511,24 +712,120 @@ bool UartController::SetCountdown(int timer) {
     return SendControlCommand(DPID_COUNTDOWN_SET, DP_TYPE_ENUM, &value, 1);
 }
 
+bool UartController::SetLightBrightness(int brightness) {
+    uint8_t value[4];
+    value[0] = (brightness >> 24) & 0xFF;
+    value[1] = (brightness >> 16) & 0xFF;
+    value[2] = (brightness >> 8) & 0xFF;
+    value[3] = brightness & 0xFF;
+    return SendControlCommand(DPID_LIGHT_BRIGHTNESS, DP_TYPE_VALUE, value, 4);
+}
+
+bool UartController::SetLedSwitch(bool state) {
+    uint8_t value = state ? 0x01 : 0x00;
+    return SendControlCommand(DPID_LIGHT_LED_SWITCH, DP_TYPE_BOOL, &value, 1);
+}
+
+bool UartController::SetLedBreathSwitch(bool state) {
+    uint8_t value = state ? 0x01 : 0x00;
+    return SendControlCommand(DPID_LIGHT_LED_BREATH_SWITCH, DP_TYPE_BOOL, &value, 1);
+}
+
+bool UartController::SetLedScene(int scene) {
+    uint8_t value = scene & 0xFF;
+    return SendControlCommand(DPID_LIGHT_LED_SCENE, DP_TYPE_ENUM, &value, 1);
+}
+
+bool UartController::SetLedColour(int hue, int saturation, int value) {
+    std::string hsv_str = FormatHsvString(hue, saturation, value);
+    return SendControlCommand(DPID_LIGHT_LED_COLOUR, DP_TYPE_STRING, (const uint8_t*)hsv_str.c_str(), hsv_str.length());
+}
+
+bool UartController::SetLaserMode(int mode) {
+    uint8_t value = mode & 0xFF;
+    return SendControlCommand(DPID_LIGHT_LASER_MODE, DP_TYPE_ENUM, &value, 1);
+}
+
+bool UartController::SetProjectionMode(int mode) {
+    uint8_t value = mode & 0xFF;
+    return SendControlCommand(DPID_LIGHT_PROJECTION_MODE, DP_TYPE_ENUM, &value, 1);
+}
+
 bool UartController::RefreshDeviceStatus() {
     return QueryMcuStatus();
+}
+
+bool UartController::ParseHsvString(const std::string& hsv_str, int& hue, int& saturation, int& value) {
+    if (hsv_str.length() != 12) {
+        ESP_LOGE(TAG, "HSV string length should be 12, got %d", (int)hsv_str.length());
+        return false;
+    }
+    
+    try {
+        // 解析HSV格式：HHHHSSSSVVVV (每个值4位16进制)
+        std::string hue_str = hsv_str.substr(0, 4);
+        std::string sat_str = hsv_str.substr(4, 4);
+        std::string val_str = hsv_str.substr(8, 4);
+        
+        int hue_raw = std::stoi(hue_str, nullptr, 16);
+        int sat_raw = std::stoi(sat_str, nullptr, 16);
+        int val_raw = std::stoi(val_str, nullptr, 16);
+        
+        // 转换为用户友好的值
+        hue = hue_raw;  // 0-360度
+        saturation = (sat_raw * 100) / 1000;  // 转换为百分比 (0-100%)
+        value = (val_raw * 100) / 1000;       // 转换为百分比 (0-100%)
+        
+        ESP_LOGD(TAG, "Parsed HSV: %s -> H:%d°, S:%d%%, V:%d%%", hsv_str.c_str(), hue, saturation, value);
+        return true;
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Failed to parse HSV string: %s, error: %s", hsv_str.c_str(), e.what());
+        return false;
+    }
+}
+
+std::string UartController::FormatHsvString(int hue, int saturation, int value) {
+    // 将用户友好的值转换为协议格式
+    int hue_raw = hue;  // 0-360度
+    int sat_raw = (saturation * 1000) / 100;  // 转换为0-1000
+    int val_raw = (value * 1000) / 100;       // 转换为0-1000
+    
+    // 格式化为12位16进制字符串：HHHHSSSSVVVV
+    char hsv_str[13];
+    snprintf(hsv_str, sizeof(hsv_str), "%04X%04X%04X", hue_raw, sat_raw, val_raw);
+    
+    ESP_LOGD(TAG, "Formatted HSV: H:%d°, S:%d%%, V:%d%% -> %s", hue, saturation, value, hsv_str);
+    return std::string(hsv_str);
 }
 
 std::string UartController::GetStatusJson() const {
     cJSON* json = cJSON_CreateObject();
     
-    cJSON_AddBoolToObject(json, "switch", device_status_.switch_state);
-    cJSON_AddNumberToObject(json, "indoor_pm25", device_status_.pm25);
-    cJSON_AddNumberToObject(json, "mode", device_status_.mode);
-    cJSON_AddNumberToObject(json, "fan_speed", device_status_.fan_speed);
-    cJSON_AddNumberToObject(json, "filter_life", device_status_.filter_life);
-    cJSON_AddBoolToObject(json, "child_lock", device_status_.child_lock);
-    cJSON_AddBoolToObject(json, "uv_light", device_status_.uv_light);
+    // 净化器相关状态
+    cJSON_AddBoolToObject(json, "purifier_switch", device_status_.purifier_switch);
+    cJSON_AddNumberToObject(json, "indoor_pm25", device_status_.indoor_pm25);
+    cJSON_AddNumberToObject(json, "purifier_mode", device_status_.purifier_mode);
+    cJSON_AddNumberToObject(json, "purifier_fan_speed", device_status_.purifier_fan_speed);
+    cJSON_AddNumberToObject(json, "purifier_filter_life", device_status_.purifier_filter_life);
+    cJSON_AddBoolToObject(json, "purifier_anion", device_status_.purifier_anion);
+    cJSON_AddBoolToObject(json, "purifier_child_lock", device_status_.purifier_child_lock);
+    cJSON_AddBoolToObject(json, "purifier_uv", device_status_.purifier_uv);
     cJSON_AddNumberToObject(json, "indoor_temp", device_status_.indoor_temp);
     cJSON_AddNumberToObject(json, "indoor_humidity", device_status_.indoor_humidity);
     cJSON_AddNumberToObject(json, "countdown_set", device_status_.countdown_set);
-    cJSON_AddNumberToObject(json, "indoor_air_quality", device_status_.air_quality);
+    cJSON_AddNumberToObject(json, "indoor_air_quality", device_status_.indoor_air_quality);
+    
+    // 灯光相关状态
+    cJSON_AddNumberToObject(json, "light_brightness", device_status_.light_brightness);
+    cJSON_AddBoolToObject(json, "light_led_switch", device_status_.light_led_switch);
+    cJSON_AddBoolToObject(json, "light_led_breath_switch", device_status_.light_led_breath_switch);
+    cJSON_AddNumberToObject(json, "light_led_scene", device_status_.light_led_scene);
+    cJSON_AddNumberToObject(json, "led_hue", device_status_.led_hue);
+    cJSON_AddNumberToObject(json, "led_saturation", device_status_.led_saturation);
+    cJSON_AddNumberToObject(json, "led_value", device_status_.led_value);
+    cJSON_AddNumberToObject(json, "light_laser_mode", device_status_.light_laser_mode);
+    cJSON_AddNumberToObject(json, "light_projection_mode", device_status_.light_projection_mode);
+    
     cJSON_AddBoolToObject(json, "status_initialized", status_initialized_);
     
     char* json_str = cJSON_PrintUnformatted(json);

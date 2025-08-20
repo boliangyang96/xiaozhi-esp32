@@ -2,7 +2,7 @@
 
 ## 概述
 
-本UART控制器实现了通过MCP协议与外部MCU进行串口通信的功能，主要用于控制空气净化器设备。控制器使用GPIO 17作为TXD端口，GPIO 18作为RXD端口，波特率为9600。
+本UART控制器实现了通过MCP协议与外部MCU进行串口通信的功能，主要用于控制AI桌面空净星空灯设备。该设备集成了空气净化器和多种灯光系统（四色灯、激光灯、投影灯）。控制器使用GPIO 17作为TXD端口，GPIO 18作为RXD端口，波特率为9600。
 
 **重要更新**: 控制器现在支持多帧数据处理，MCU会一次性上报所有DP数据，系统会自动分割和处理多个连续的数据帧。
 
@@ -47,40 +47,68 @@ MCU会一次性上报所有DP数据，包含多个连续的数据帧，例如：
 
 ## 功能特性
 
-### 设备控制功能
+### 空气净化器控制功能
 1. **开关控制** - 开启/关闭空气净化器
 2. **模式设置** - 设置运行模式（睡眠/自动/快速/手动）
 3. **风速控制** - 设置风扇速度（低/中/高）
-4. **童锁控制** - 启用/禁用童锁功能
-5. **杀菌灯控制** - 开启/关闭UV杀菌灯
-6. **定时设置** - 设置定时器（1小时/2小时/4小时/6小时/取消）
+4. **负离子控制** - 启用/禁用负离子功能
+5. **童锁控制** - 启用/禁用童锁功能
+6. **杀菌灯控制** - 开启/关闭UV杀菌灯
+7. **定时设置** - 设置定时器（1小时/2小时/4小时/6小时/取消）
+
+### 灯光系统控制功能
+1. **四色灯亮度控制** - 设置白光亮度（1-100）
+2. **四色灯开关** - 开启/关闭四色LED灯
+3. **四色灯呼吸效果** - 开启/关闭四色LED灯呼吸效果
+4. **四色灯场景模式** - 设置16种预设场景（月影、极光、黄昏、深蓝、森林、篝火、黎明、星空、日落、寺庙烛光、水墨、赛博朋克、浪漫、治愈、专注、彩虹）+ 1个自定义
+5. **四色灯颜色设置** - 使用HSV色彩模式精确设置颜色（色调0-360°，饱和度0-100%，亮度0-100%）
+6. **激光灯模式控制** - 设置激光灯模式（常亮/呼吸/关闭）
+7. **投影灯模式控制** - 设置投影灯模式（常亮/呼吸/关闭）
 
 ### 状态查询功能
-1. **设备状态查询** - 获取空气净化器所有设备状态信息，包括：
+1. **完整设备状态查询** - 获取空气净化器和灯光的所有设备状态信息，包括：
    - 净化器开关状态
    - 室内PM2.5数值
    - 净化器模式设置状态
    - 净化器风速状态
    - 净化器滤网寿命
+   - 负离子状态
    - 净化器童锁状态
    - 净化器杀菌灯状态
    - 室内温度
    - 室内湿度
    - 净化器定时状态
    - 室内空气质量
+   - 四色灯亮度
+   - 四色灯开关状态
+   - 四色灯呼吸效果状态
+   - 四色灯场景模式
+   - 四色灯颜色（HSV值）
+   - 激光灯模式
+   - 投影灯模式
 
 ## MCP工具接口
 
-### 控制工具
-- `self.air_purifier.set_switch` - 控制开关
-- `self.air_purifier.set_mode` - 设置模式
-- `self.air_purifier.set_fan_speed` - 设置风速
+### 空气净化器控制工具
+- `self.air_purifier.set_switch` - 控制净化器开关
+- `self.air_purifier.set_mode` - 设置净化器模式
+- `self.air_purifier.set_fan_speed` - 设置净化器风速
+- `self.air_purifier.set_anion` - 设置负离子开关
 - `self.air_purifier.set_child_lock` - 设置童锁
 - `self.air_purifier.set_uv_light` - 设置杀菌灯
-- `self.air_purifier.set_countdown` - 设置定时
+- `self.air_purifier.set_countdown` - 设置定时器
 
-### 查询工具
-- `self.air_purifier.get_status` - 获取完整设备状态，包括净化器开关状态、室内PM2.5数值、净化器模式设置状态、净化器风速状态、净化器滤网寿命、净化器童锁状态、净化器杀菌灯状态、室内温度、室内湿度、净化器定时状态、室内空气质量等所有信息
+### 灯光系统控制工具
+- `self.light.set_brightness` - 设置四色灯白光亮度
+- `self.light.set_led_switch` - 设置四色LED灯开关
+- `self.light.set_led_breath_switch` - 设置四色LED呼吸效果开关
+- `self.light.set_led_scene` - 设置四色LED场景模式
+- `self.light.set_led_colour` - 设置四色LED颜色（HSV格式）
+- `self.light.set_laser_mode` - 设置激光灯模式
+- `self.light.set_projection_mode` - 设置投影灯模式
+
+### 状态查询工具
+- `self.air_purifier_or_light.get_status` - 获取完整设备状态，包括净化器所有状态和灯光系统所有状态信息
 
 ## 使用示例
 
@@ -97,7 +125,7 @@ MCU会一次性上报所有DP数据，包含多个连续的数据帧，例如：
 ### 查询设备状态
 ```json
 {
-  "tool": "self.air_purifier.get_status",
+  "tool": "self.air_purifier_or_light.get_status",
   "arguments": {}
 }
 ```
@@ -108,6 +136,28 @@ MCU会一次性上报所有DP数据，包含多个连续的数据帧，例如：
   "tool": "self.air_purifier.set_mode",
   "arguments": {
     "mode": 1
+  }
+}
+```
+
+### 设置LED颜色
+```json
+{
+  "tool": "self.light.set_led_colour",
+  "arguments": {
+    "hue": 220,
+    "saturation": 75,
+    "value": 78
+  }
+}
+```
+
+### 设置灯光场景
+```json
+{
+  "tool": "self.light.set_led_scene",
+  "arguments": {
+    "scene": 7
   }
 }
 ```
@@ -136,6 +186,40 @@ MCU会一次性上报所有DP数据，包含多个连续的数据帧，例如：
 - 2: 4小时
 - 3: 6小时
 - 4: 取消定时
+
+### 灯光场景模式
+- 0: 月影 (moon_shadow)
+- 1: 极光 (aurora)
+- 2: 黄昏 (dusk)
+- 3: 深蓝 (deep_blue)
+- 4: 森林 (forest)
+- 5: 篝火 (bonfire)
+- 6: 黎明 (early_dawn)
+- 7: 星空 (starry_sky)
+- 8: 日落 (sunset)
+- 9: 寺庙烛光 (temple_candle)
+- 10: 水墨 (ink_wash)
+- 11: 赛博朋克 (cyberpunk)
+- 12: 浪漫 (romance)
+- 13: 治愈 (healing)
+- 14: 专注 (focus)
+- 15: 彩虹 (rainbow)
+- 16: 自定义 (custom)
+
+### 激光灯和投影灯模式
+- 0: 常亮 (on)
+- 1: 呼吸 (breath)
+- 2: 关闭 (off)
+
+### HSV颜色格式说明
+- **色调 (Hue)**: 0-360度，表示颜色在色环中的位置
+- **饱和度 (Saturation)**: 0-100%，表示颜色的纯度
+- **亮度值 (Value)**: 0-100%，表示颜色的明暗程度
+
+**示例**: 设置蓝色
+- 色调: 220度 (蓝色区域)
+- 饱和度: 75% (较高饱和度)
+- 亮度: 78% (中等亮度)
 
 ## 错误处理
 

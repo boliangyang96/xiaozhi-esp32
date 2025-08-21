@@ -223,7 +223,10 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
                 Property("value", kPropertyTypeInteger, 0, 100)
             }),
             [this](const PropertyList& properties) -> ReturnValue {
-                SetLedScene(16); // 发送指令，设置为 custom 灯光场景
+                // 首先设置为 custom 灯光场景，必须成功才能继续设置颜色
+                if (!SetLedScene(LIGHT_SCENE_CUSTOM)) {
+                    return "{\"success\": false, \"message\": \"Failed to set custom light scene before setting colour\"}";
+                }
                 int hue = properties["hue"].value<int>();
                 int saturation = properties["saturation"].value<int>();
                 int value = properties["value"].value<int>();

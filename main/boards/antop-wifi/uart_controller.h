@@ -177,6 +177,9 @@ public:
     
     // 设置风速
     bool SetFanSpeed(int speed);
+
+    // 设置负离子
+    bool SetAnion(bool state);
     
     // 设置童锁
     bool SetChildLock(bool state);
@@ -186,9 +189,6 @@ public:
     
     // 设置定时
     bool SetCountdown(int timer);
-    
-    // 设置负离子
-    bool SetAnion(bool state);
     
     // 设置灯光亮度
     bool SetLightBrightness(int brightness);

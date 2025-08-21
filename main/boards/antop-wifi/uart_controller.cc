@@ -200,7 +200,24 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置LED灯光场景，当前该工具将 custom 排除在外，因为 custom 场景需要使用 'self.light.set_led_colour' 工具来单独设置颜色
         mcp_server.AddTool("self.light.set_led_scene", 
-            "Set the lighting scene of the LED light. ONLY supports the following specific scenes: moon_shadow (0), aurora (1), dusk (2), deep_blue (3), forest (4), bonfire (5), early_dawn (6), starry_sky (7), sunset (8), temple_candle (9), ink_wash (10), cyberpunk (11), romance (12), healing (13), focus (14), rainbow (15). DO NOT use this tool if you receive an unsupported scene value, USE 'self.light.set_led_colour' instead.",
+            "Set the lighting scene of the LED light. ONLY supports the following specific scenes with their corresponding colors and breathing effects:\n"
+            "- moon_shadow (0): RGB(230,240,255), RGB(135,230,250) - slow breathing effect\n"
+            "- aurora (1): RGB(145,240,255), RGB(0,230,180), RGB(60,15,100) - slow breathing effect\n"
+            "- dusk (2): RGB(255,140,40), RGB(255,190,60), RGB(255,210,230) - slow breathing effect\n"
+            "- deep_blue (3): RGB(30,100,150), RGB(50,120,210) - slow breathing effect\n"
+            "- forest (4): RGB(240,210,100), RGB(130,190,140), RGB(160,120,80), RGB(220,240,210) - fast-slow combined breathing effect\n"
+            "- bonfire (5): RGB(255,180,100), RGB(255,215,175), RGB(255,90,50) - fast-slow combined breathing effect\n"
+            "- early_dawn (6): RGB(255,160,80), RGB(220,245,255), RGB(180,240,230) - slow breathing effect\n"
+            "- starry_sky (7): RGB(15,25,65), RGB(200,230,255), RGB(120,90,180) - slow breathing effect\n"
+            "- sunset (8): RGB(255,80,40), RGB(150,70,160), RGB(255,180,60) - fast-slow combined breathing effect\n"
+            "- temple_candle (9): RGB(255,90,50), RGB(120,80,50) - fast-slow combined breathing effect\n"
+            "- ink_wash (10): RGB(200,210,220), RGB(240,245,250) - slow breathing effect\n"
+            "- cyberpunk (11): RGB(255,0,150), RGB(0,200,255), RGB(170,0,255) - fast breathing effect\n"
+            "- romance (12): RGB(255,210,230), RGB(255,230,180) - medium breathing effect\n"
+            "- healing (13): RGB(255,220,230), RGB(200,230,180) - slow breathing effect\n"
+            "- focus (14): RGB(50,120,210), RGB(220,240,210) - slow breathing effect\n"
+            "- rainbow (15): RGB(255,90,90), RGB(255,150,50), RGB(255,255,100), RGB(100,255,100), RGB(80,150,255), RGB(120,80,220), RGB(220,120,255) - medium breathing effect\n"
+            "DO NOT use this tool if you receive an unsupported scene value, USE 'self.light.set_led_colour' instead.",
             PropertyList({
                 Property("scene", kPropertyTypeInteger, 0, 15)
             }),
@@ -216,7 +233,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置LED颜色
         mcp_server.AddTool("self.light.set_led_colour", 
-            "Set the color of the LED light using HSV values. Hue: 0-360 degrees, Saturation: 0-100%, Value: 0-100%",
+            "Set the color of the LED light using HSV values, there is ONLY one RGB-LED light on the device. Hue: 0-360 degrees, Saturation: 0-100%, Value: 0-100%",
             PropertyList({
                 Property("hue", kPropertyTypeInteger, 0, 360),
                 Property("saturation", kPropertyTypeInteger, 0, 100),

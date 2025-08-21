@@ -6,7 +6,6 @@
 #include "button.h"
 #include "config.h"
 #include "mcp_server.h"
-#include "breathing_lamp_controller.h"
 #include "uart_controller.h"
 #include "led/single_led.h"
 #include "assets/lang_config.h"
@@ -154,7 +153,6 @@ private:
 
     // 物联网初始化，逐步迁移到 MCP 协议
     void InitializeTools() {
-        static BreathingLampController breathing_lamp(LAMP_GPIO);
         static UartController uart_controller(UART_TXD_PIN, UART_RXD_PIN);
     }
 

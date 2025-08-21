@@ -233,7 +233,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置LED颜色
         mcp_server.AddTool("self.light.set_led_colour", 
-            "Set the color of the LED light using HSV values, there is ONLY one RGB-LED light on the device. Hue: 0-360 degrees, Saturation: 0-100%, Value: 0-100%",
+            "Set the color of the LED light using HSV values, there is ONLY one RGB-LED light on the device. If you use this tool, the current LED scene will be overridden as custom and the LED will be set to the color you specified. Hue: 0-360 degrees, Saturation: 0-100%, Value: 0-100%",
             PropertyList({
                 Property("hue", kPropertyTypeInteger, 0, 360),
                 Property("saturation", kPropertyTypeInteger, 0, 100),

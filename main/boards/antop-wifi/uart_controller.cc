@@ -217,7 +217,8 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
             "- healing (13): RGB(255,220,230), RGB(200,230,180) - slow breathing effect\n"
             "- focus (14): RGB(50,120,210), RGB(220,240,210) - slow breathing effect\n"
             "- rainbow (15): RGB(255,90,90), RGB(255,150,50), RGB(255,255,100), RGB(100,255,100), RGB(80,150,255), RGB(120,80,220), RGB(220,120,255) - medium breathing effect\n"
-            "DO NOT use this tool if you receive an unsupported scene value, USE 'self.light.set_led_colour' instead.",
+            "Once a lighting scene is selected, the colors are fixed and CANNOT be individually adjusted or modified. If you need custom color control, use 'self.light.set_led_colour' instead which switches to custom mode.\n"
+            "Also, DO NOT use this tool if you receive an unsupported scene value, USE 'self.light.set_led_colour' instead.",
             PropertyList({
                 Property("scene", kPropertyTypeInteger, 0, 15)
             }),

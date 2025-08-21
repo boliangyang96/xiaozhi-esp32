@@ -185,7 +185,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置LED呼吸开关
         mcp_server.AddTool("self.light.set_led_breath_switch", 
-            "Turn on or off the breathing effect of the LED light",
+            "Turn on or off the breathing effect of the LED light. This tool only controls the on/off state of the LED breathing effect and cannot control the breathing rate or speed.",
             PropertyList({
                 Property("state", kPropertyTypeBoolean)
             }),

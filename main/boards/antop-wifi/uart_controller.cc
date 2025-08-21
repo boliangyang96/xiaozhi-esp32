@@ -200,7 +200,8 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置LED灯光场景，当前该工具将 custom 排除在外，因为 custom 场景需要使用 'self.light.set_led_colour' 工具来单独设置颜色
         mcp_server.AddTool("self.light.set_led_scene", 
-            "Set the lighting scene of the LED light. ONLY supports the following specific scenes with their corresponding colors and breathing effects:\n"
+            "Set the lighting scene of the LED light. Once a lighting scene is selected, the colors are fixed and CANNOT be individually adjusted or modified. If you need custom color control, use 'self.light.set_led_colour' instead which switches to custom mode. Also, DO NOT use this tool if you receive an unsupported scene value, USE 'self.light.set_led_colour' instead.\n"
+            "ONLY supports the following specific scenes with their corresponding colors and breathing effects:\n"
             "- moon_shadow (0): RGB(230,240,255), RGB(135,230,250) - slow breathing effect\n"
             "- aurora (1): RGB(145,240,255), RGB(0,230,180), RGB(60,15,100) - slow breathing effect\n"
             "- dusk (2): RGB(255,140,40), RGB(255,190,60), RGB(255,210,230) - slow breathing effect\n"
@@ -216,9 +217,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
             "- romance (12): RGB(255,210,230), RGB(255,230,180) - medium breathing effect\n"
             "- healing (13): RGB(255,220,230), RGB(200,230,180) - slow breathing effect\n"
             "- focus (14): RGB(50,120,210), RGB(220,240,210) - slow breathing effect\n"
-            "- rainbow (15): RGB(255,90,90), RGB(255,150,50), RGB(255,255,100), RGB(100,255,100), RGB(80,150,255), RGB(120,80,220), RGB(220,120,255) - medium breathing effect\n"
-            "Once a lighting scene is selected, the colors are fixed and CANNOT be individually adjusted or modified. If you need custom color control, use 'self.light.set_led_colour' instead which switches to custom mode.\n"
-            "Also, DO NOT use this tool if you receive an unsupported scene value, USE 'self.light.set_led_colour' instead.",
+            "- rainbow (15): RGB(255,90,90), RGB(255,150,50), RGB(255,255,100), RGB(100,255,100), RGB(80,150,255), RGB(120,80,220), RGB(220,120,255) - medium breathing effect",
             PropertyList({
                 Property("scene", kPropertyTypeInteger, 0, 15)
             }),
@@ -234,7 +233,7 @@ UartController::UartController(gpio_num_t tx_pin, gpio_num_t rx_pin, uart_port_t
         
         // 设置LED颜色
         mcp_server.AddTool("self.light.set_led_colour", 
-            "Set the color of the LED light using HSV values, there is ONLY one RGB-LED light on the device. If you use this tool, the current LED scene will be overridden as custom and the LED will be set to the color you specified. Hue: 0-360 degrees, Saturation: 0-100%, Value: 0-100%",
+            "Set the color of the LED light using HSV values, there is ONLY one RGB-LED light on the device. IMPORTANT WARNING: If the current light scene is not custom (0-15), this tool will OVERRIDE the current light scene and switch to custom mode (16). The predefined scene effects (breathing patterns, color combinations) will be lost and replaced with the single color you specify. Use 'self.air_purifier_or_light.get_status' to check the current scene first if needed. Parameters - Hue: 0-360 degrees, Saturation: 0-100%, Value: 0-100%",
             PropertyList({
                 Property("hue", kPropertyTypeInteger, 0, 360),
                 Property("saturation", kPropertyTypeInteger, 0, 100),

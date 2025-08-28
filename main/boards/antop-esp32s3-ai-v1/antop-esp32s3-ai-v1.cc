@@ -20,12 +20,12 @@
 #include <esp_lcd_panel_sh1106.h>
 #endif
 
-#define TAG "AntopWifiBoard"
+#define TAG "AntopEsp32s3AiV1Board"
 
 LV_FONT_DECLARE(font_puhui_14_1);
 LV_FONT_DECLARE(font_awesome_14_1);
 
-class AntopWifiBoard : public WifiBoard {
+class AntopEsp32s3AiV1Board : public WifiBoard {
 private:
     i2c_master_bus_handle_t display_i2c_bus_;
     esp_lcd_panel_io_handle_t panel_io_ = nullptr;
@@ -157,7 +157,7 @@ private:
     }
 
 public:
-    AntopWifiBoard() :
+    AntopEsp32s3AiV1Board() :
         boot_button_(BOOT_BUTTON_GPIO),
         touch_button_(TOUCH_BUTTON_GPIO),
         volume_up_button_(VOLUME_UP_BUTTON_GPIO),
@@ -189,4 +189,4 @@ public:
     }
 };
 
-DECLARE_BOARD(AntopWifiBoard);
+DECLARE_BOARD(AntopEsp32s3AiV1Board);

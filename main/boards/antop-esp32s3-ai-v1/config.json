@@ -2,7 +2,7 @@
     "target": "esp32s3",
     "builds": [
         {
-            "name": "antop-wifi",
+            "name": "antop-esp32s3-ai-v1",
             "sdkconfig_append": []
         }
     ]

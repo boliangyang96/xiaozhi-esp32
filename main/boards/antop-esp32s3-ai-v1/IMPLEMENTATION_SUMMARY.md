@@ -12,7 +12,7 @@
 - `README_UART.md` - 使用说明文档
 
 ### 修改文件
-- `antop-wifi.cc` - 主板文件，集成了UART控制器
+- `antop-esp32s3-ai-v1.cc` - 主板文件（基于`main/boards/bread-compact-wifi`板子进行修改），集成了UART控制器
 
 ## 实现功能
 
